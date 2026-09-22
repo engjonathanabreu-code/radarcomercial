@@ -47,7 +47,13 @@ export async function runWithWebSearch(opts: {
         for (const r of block.content) if (r?.url) sources.push({ url: r.url, title: r.title || r.url });
       }
     }
-    const text = (res.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n');
+    // A ferramenta de busca às vezes anota o texto com <cite index="...">...</cite> em volta de
+    // trechos citados; isso quebra o JSON quando cai dentro de um campo. Mantém o conteúdo, remove só a tag.
+    const text = (res.content || [])
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('\n')
+      .replace(/<\/?cite[^>]*>/g, '');
 
     // Resposta cortada por limite de tamanho antes de fechar o JSON: pede pra continuar
     // exatamente de onde parou, em vez de descartar tudo e falhar a cidade.
