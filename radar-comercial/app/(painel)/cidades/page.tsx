@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import CitiesManager from '@/components/CitiesManager';
 
 export default async function CidadesPage() {
-  const { data } = await db().from('cities').select('id,name,uf,ibge_code,active,contact_email').order('name');
+  const { data } = await db().from('radar_cities').select('id,name,uf,ibge_code,active,contact_email').order('name');
   return (
     <>
       <div className="page-head">

@@ -10,19 +10,19 @@ import { formatBR } from './dates';
 export async function startRun(trigger: 'cron' | 'manual', cityIds?: string[]): Promise<string | null> {
   // Evita rodadas duplicadas: se há uma em andamento com menos de 3h, reaproveita.
   const { data: running } = await db()
-    .from('runs').select('id,started_at').eq('status', 'running')
+    .from('radar_runs').select('id,started_at').eq('status', 'running')
     .gte('started_at', new Date(Date.now() - 3 * 3600_000).toISOString())
     .order('started_at', { ascending: false }).limit(1).maybeSingle();
   if (running && !cityIds) return running.id;
 
-  let q = db().from('cities').select('id').eq('active', true);
+  let q = db().from('radar_cities').select('id').eq('active', true);
   if (cityIds?.length) q = q.in('id', cityIds);
   const { data: cities } = await q;
   if (!cities?.length) return null;
 
-  const { data: run, error } = await db().from('runs').insert({ trigger }).select('id').single();
+  const { data: run, error } = await db().from('radar_runs').insert({ trigger }).select('id').single();
   if (error || !run) throw new Error(error?.message || 'Falha ao criar rodada');
-  await db().from('run_items').insert(cities.map((c) => ({ run_id: run.id, city_id: c.id })));
+  await db().from('radar_run_items').insert(cities.map((c) => ({ run_id: run.id, city_id: c.id })));
   return run.id;
 }
 
@@ -45,7 +45,7 @@ export async function callWorker(runId: string): Promise<void> {
 
 /** Processa a próxima cidade da fila. Retorna true se ainda houver trabalho. */
 export async function processNext(runId: string): Promise<boolean> {
-  const { data: claimed, error } = await db().rpc('claim_next_item', { p_run_id: runId });
+  const { data: claimed, error } = await db().rpc('radar_claim_next_item', { p_run_id: runId });
   if (error) throw new Error(error.message);
   const item = Array.isArray(claimed) ? claimed[0] : null;
   if (!item) {
@@ -53,16 +53,16 @@ export async function processNext(runId: string): Promise<boolean> {
     return false;
   }
 
-  const { data: city } = await db().from('cities').select('*').eq('id', item.city_id).single();
+  const { data: city } = await db().from('radar_cities').select('*').eq('id', item.city_id).single();
   try {
     const { report, searches } = await researchCity(city as City, runId);
-    await db().from('run_items').update({
+    await db().from('radar_run_items').update({
       status: 'done', report, searches, finished_at: new Date().toISOString(), error: null,
     }).eq('id', item.id);
   } catch (e: any) {
     console.error(`Erro pesquisando ${city?.name}:`, e);
     const retry = item.attempts < 2;
-    await db().from('run_items').update({
+    await db().from('radar_run_items').update({
       status: retry ? 'pending' : 'error',
       error: String(e?.message || e).slice(0, 1000),
       finished_at: retry ? null : new Date().toISOString(),
@@ -72,12 +72,12 @@ export async function processNext(runId: string): Promise<boolean> {
 }
 
 async function finalizeIfDone(runId: string): Promise<void> {
-  const { count } = await db().from('run_items').select('id', { count: 'exact', head: true })
+  const { count } = await db().from('radar_run_items').select('id', { count: 'exact', head: true })
     .eq('run_id', runId).in('status', ['pending', 'running']);
   if ((count ?? 0) > 0) return;
 
   // Só uma cadeia consegue fechar a rodada
-  const { data: closed } = await db().from('runs')
+  const { data: closed } = await db().from('radar_runs')
     .update({ status: 'done', finished_at: new Date().toISOString() })
     .eq('id', runId).eq('status', 'running').select('id');
   if (!closed?.length) return;
@@ -85,7 +85,7 @@ async function finalizeIfDone(runId: string): Promise<void> {
   if (env.reportEmail && smtpConfigured()) {
     try {
       await sendDigest(runId);
-      await db().from('runs').update({ digest_sent: true }).eq('id', runId);
+      await db().from('radar_runs').update({ digest_sent: true }).eq('id', runId);
     } catch (e) {
       console.error('Falha no relatório por e-mail', e);
     }
@@ -93,10 +93,10 @@ async function finalizeIfDone(runId: string): Promise<void> {
 }
 
 async function sendDigest(runId: string): Promise<void> {
-  const { data: run } = await db().from('runs').select('started_at').eq('id', runId).single();
+  const { data: run } = await db().from('radar_runs').select('started_at').eq('id', runId).single();
   const { data: opps } = await db()
-    .from('opportunities')
-    .select('title,kind,score,eligible,business_days_left,deadline_at,neighborhood,source_url,cities(name,uf)')
+    .from('radar_opportunities')
+    .select('title,kind,score,eligible,business_days_left,deadline_at,neighborhood,source_url,cities:radar_cities(name,uf)')
     .gte('first_seen', run!.started_at)
     .neq('status', 'descartado')
     .order('score', { ascending: false })

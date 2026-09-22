@@ -8,13 +8,13 @@ import { env } from './env';
 
 export async function draftEmail(args: { cityId: string; opportunityIds: string[]; intent: string; briefing: string }) {
   const [{ data: city }, { data: opps }, { data: lastItem }, { data: history }, b] = await Promise.all([
-    db().from('cities').select('*').eq('id', args.cityId).single(),
+    db().from('radar_cities').select('*').eq('id', args.cityId).single(),
     args.opportunityIds.length
-      ? db().from('opportunities').select('*').in('id', args.opportunityIds)
+      ? db().from('radar_opportunities').select('*').in('id', args.opportunityIds)
       : Promise.resolve({ data: [] as any[] }),
-    db().from('run_items').select('report').eq('city_id', args.cityId).eq('status', 'done')
+    db().from('radar_run_items').select('report').eq('city_id', args.cityId).eq('status', 'done')
       .order('finished_at', { ascending: false }).limit(1).maybeSingle(),
-    db().from('email_drafts').select('subject,sent_at,intent').eq('city_id', args.cityId).eq('status', 'enviado')
+    db().from('radar_email_drafts').select('subject,sent_at,intent').eq('city_id', args.cityId).eq('status', 'enviado')
       .order('sent_at', { ascending: false }).limit(5),
     getBriefing(),
   ]);
@@ -48,7 +48,7 @@ Contatos anteriores já enviados: ${(history || []).map((h: any) => `${formatBR(
   if (!parsed?.corpo) throw new Error('A IA não devolveu o e-mail no formato esperado.');
 
   const body = `${parsed.corpo.trim()}\n\n${b.signature}${b.sender_phone ? `\n${b.sender_phone}` : ''}`;
-  const { data: draft, error } = await db().from('email_drafts').insert({
+  const { data: draft, error } = await db().from('radar_email_drafts').insert({
     city_id: city.id,
     opportunity_ids: args.opportunityIds,
     intent: args.intent,

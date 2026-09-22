@@ -7,18 +7,18 @@ import OppFeed from '@/components/OppFeed';
 
 export default async function RadarPage() {
   const [{ data: run }, { data: cities }, reports, { data: tendersRaw }, { data: recentRaw }] = await Promise.all([
-    db().from('runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
-    db().from('cities').select('id,name,uf,active,contact_email').eq('active', true).order('name'),
+    db().from('radar_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle(),
+    db().from('radar_cities').select('id,name,uf,active,contact_email').eq('active', true).order('name'),
     latestReports(),
-    db().from('opportunities').select('*, cities(name,uf)').eq('kind', 'licitacao').neq('status', 'descartado')
+    db().from('radar_opportunities').select('*, cities:radar_cities(name,uf)').eq('kind', 'licitacao').neq('status', 'descartado')
       .gte('deadline_at', new Date().toISOString()).order('deadline_at', { ascending: true }).limit(40),
-    db().from('opportunities').select('*, cities(name,uf)')
+    db().from('radar_opportunities').select('*, cities:radar_cities(name,uf)')
       .gte('last_seen', new Date(Date.now() - 7 * 86400_000).toISOString())
       .order('score', { ascending: false }).limit(80),
   ]);
 
   const { data: items } = run
-    ? await db().from('run_items').select('status,city_id,error,cities(name)').eq('run_id', run.id)
+    ? await db().from('radar_run_items').select('status,city_id,error,cities:radar_cities(name)').eq('run_id', run.id)
     : { data: [] as any[] };
 
   const tenders = (tendersRaw || []).map((o: any) => toView(o));
@@ -26,7 +26,7 @@ export default async function RadarPage() {
   const tight = tenders.filter((t) => t.eligible === false && (t.bdl ?? -1) >= 0);
   const recent = (recentRaw || []).map((o: any) => toView(o));
 
-  const { data: counts } = await db().from('opportunities').select('city_id,kind,status')
+  const { data: counts } = await db().from('radar_opportunities').select('city_id,kind,status')
     .neq('status', 'descartado').gte('last_seen', new Date(Date.now() - 30 * 86400_000).toISOString());
   const perCity = new Map<string, { total: number; bairros: number }>();
   for (const c of counts || []) {

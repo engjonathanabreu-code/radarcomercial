@@ -37,11 +37,11 @@ export const DEFAULT_BRIEFING: Briefing = {
 };
 
 export async function getBriefing(): Promise<Briefing> {
-  const { data } = await db().from('settings').select('value').eq('key', 'briefing').maybeSingle();
+  const { data } = await db().from('radar_settings').select('value').eq('key', 'briefing').maybeSingle();
   return { ...DEFAULT_BRIEFING, ...((data?.value as Partial<Briefing>) || {}) };
 }
 
 export async function saveBriefing(b: Partial<Briefing>): Promise<void> {
   const current = await getBriefing();
-  await db().from('settings').upsert({ key: 'briefing', value: { ...current, ...b }, updated_at: new Date().toISOString() });
+  await db().from('radar_settings').upsert({ key: 'briefing', value: { ...current, ...b }, updated_at: new Date().toISOString() });
 }

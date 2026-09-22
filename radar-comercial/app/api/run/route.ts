@@ -15,8 +15,8 @@ export async function POST(req: Request) {
 
 // Status da rodada mais recente (o painel consulta enquanto roda)
 export async function GET() {
-  const { data: run } = await db().from('runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle();
+  const { data: run } = await db().from('radar_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle();
   if (!run) return NextResponse.json({ run: null, items: [] });
-  const { data: items } = await db().from('run_items').select('status,city_id,error,cities(name)').eq('run_id', run.id);
+  const { data: items } = await db().from('radar_run_items').select('status,city_id,error,cities:radar_cities(name)').eq('run_id', run.id);
   return NextResponse.json({ run, items: items || [] });
 }

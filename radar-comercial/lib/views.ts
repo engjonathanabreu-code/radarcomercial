@@ -19,7 +19,7 @@ export function toView(o: Opportunity & { cities?: { name: string; uf: string } 
 }
 
 export async function latestReports(): Promise<Map<string, { report: any; finished_at: string }>> {
-  const { data } = await db().from('run_items').select('city_id,report,finished_at').eq('status', 'done')
+  const { data } = await db().from('radar_run_items').select('city_id,report,finished_at').eq('status', 'done')
     .order('finished_at', { ascending: false }).limit(300);
   const map = new Map<string, { report: any; finished_at: string }>();
   for (const r of data || []) if (!map.has(r.city_id)) map.set(r.city_id, { report: r.report, finished_at: r.finished_at });

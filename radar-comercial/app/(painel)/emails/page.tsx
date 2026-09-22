@@ -3,7 +3,7 @@ import { smtpConfigured } from '@/lib/mailer';
 import DraftList from '@/components/DraftList';
 
 export default async function EmailsPage() {
-  const { data } = await db().from('email_drafts').select('*, cities(name,uf)').order('created_at', { ascending: false }).limit(100);
+  const { data } = await db().from('radar_email_drafts').select('*, cities:radar_cities(name,uf)').order('created_at', { ascending: false }).limit(100);
   const drafts = (data || []).map((d: any) => ({ ...d, city_name: d.cities ? `${d.cities.name}/${d.cities.uf}` : undefined }));
   return (
     <>

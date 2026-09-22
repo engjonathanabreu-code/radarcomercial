@@ -17,7 +17,7 @@ export async function researchCity(city: City, runId: string): Promise<{ report:
   let ibge = city.ibge_code;
   if (!ibge) {
     ibge = await resolveIbgeCode(city.name, city.uf);
-    if (ibge) await db().from('cities').update({ ibge_code: ibge }).eq('id', city.id);
+    if (ibge) await db().from('radar_cities').update({ ibge_code: ibge }).eq('id', city.id);
   }
 
   // 2. Licitações oficiais
@@ -26,7 +26,7 @@ export async function researchCity(city: City, runId: string): Promise<{ report:
 
   // 3. O que já conhecemos (evita repetição e força a busca de novidades)
   const { data: knownRows } = await db()
-    .from('opportunities')
+    .from('radar_opportunities')
     .select('kind,title,neighborhood')
     .eq('city_id', city.id)
     .neq('status', 'descartado')
@@ -116,12 +116,12 @@ export async function researchCity(city: City, runId: string): Promise<{ report:
 
   // 5. Upsert sem apagar o status que você já deu (novo/andamento/descartado)
   for (const row of rows) {
-    const { data: existing } = await db().from('opportunities').select('id').eq('fingerprint', row.fingerprint).maybeSingle();
+    const { data: existing } = await db().from('radar_opportunities').select('id').eq('fingerprint', row.fingerprint).maybeSingle();
     if (existing) {
       const { run_id, fingerprint: _f, ...updatable } = row;
-      await db().from('opportunities').update({ ...updatable, last_seen: new Date().toISOString() }).eq('id', existing.id);
+      await db().from('radar_opportunities').update({ ...updatable, last_seen: new Date().toISOString() }).eq('id', existing.id);
     } else {
-      await db().from('opportunities').insert(row);
+      await db().from('radar_opportunities').insert(row);
     }
   }
 
@@ -129,7 +129,7 @@ export async function researchCity(city: City, runId: string): Promise<{ report:
   const contacts = (Array.isArray(parsed.contatos) ? parsed.contatos : []).filter((c: any) => c && (c.email || c.telefone));
   const best = contacts.find((c: any) => c.verificado && isEmail(c.email));
   if (best && !city.contact_email) {
-    await db().from('cities').update({
+    await db().from('radar_cities').update({
       contact_email: best.email.trim(),
       contact_name: city.contact_name || best.nome || null,
       contact_role: city.contact_role || best.cargo || null,

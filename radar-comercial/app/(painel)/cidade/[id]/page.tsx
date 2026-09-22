@@ -6,14 +6,14 @@ import CityWorkspace from '@/components/CityWorkspace';
 
 export default async function CityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { data: city } = await db().from('cities').select('*').eq('id', id).maybeSingle();
+  const { data: city } = await db().from('radar_cities').select('*').eq('id', id).maybeSingle();
   if (!city) notFound();
 
   const [{ data: last }, { data: opps }, { data: drafts }] = await Promise.all([
-    db().from('run_items').select('report,finished_at,searches').eq('city_id', id).eq('status', 'done')
+    db().from('radar_run_items').select('report,finished_at,searches').eq('city_id', id).eq('status', 'done')
       .order('finished_at', { ascending: false }).limit(1).maybeSingle(),
-    db().from('opportunities').select('*').eq('city_id', id).order('score', { ascending: false }).limit(150),
-    db().from('email_drafts').select('*').eq('city_id', id).order('created_at', { ascending: false }).limit(20),
+    db().from('radar_opportunities').select('*').eq('city_id', id).order('score', { ascending: false }).limit(150),
+    db().from('radar_email_drafts').select('*').eq('city_id', id).order('created_at', { ascending: false }).limit(20),
   ]);
   const r = last?.report;
 
