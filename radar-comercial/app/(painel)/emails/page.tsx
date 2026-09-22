@@ -1,9 +1,12 @@
 import { db } from '@/lib/db';
 import { smtpConfigured } from '@/lib/mailer';
-import DraftList from '@/components/DraftList';
+import EmailsTabs from '@/components/EmailsTabs';
 
 export default async function EmailsPage() {
-  const { data } = await db().from('radar_email_drafts').select('*, cities:radar_cities(name,uf)').order('created_at', { ascending: false }).limit(100);
+  const [{ data }, { data: cities }] = await Promise.all([
+    db().from('radar_email_drafts').select('*, cities:radar_cities(name,uf)').order('created_at', { ascending: false }).limit(100),
+    db().from('radar_cities').select('id,name,uf').order('name'),
+  ]);
   const drafts = (data || []).map((d: any) => ({ ...d, city_name: d.cities ? `${d.cities.name}/${d.cities.uf}` : undefined }));
   return (
     <>
@@ -14,7 +17,7 @@ export default async function EmailsPage() {
         </div>
       </div>
       {!smtpConfigured() && <p className="notice">O envio está desligado: configure SMTP_HOST, SMTP_USER e SMTP_PASS nas variáveis da Vercel.</p>}
-      <DraftList drafts={drafts} />
+      <EmailsTabs cities={(cities || []) as any} drafts={drafts} />
     </>
   );
 }
