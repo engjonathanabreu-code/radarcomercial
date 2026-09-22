@@ -25,10 +25,10 @@ export async function runWithWebSearch(opts: {
   const sources: SearchSource[] = [];
   let finalText = '';
 
-  for (let turn = 0; turn < 5; turn++) {
+  for (let turn = 0; turn < 12; turn++) {
     const res: any = await anthropic().messages.create({
       model: opts.model || env.modelResearch,
-      max_tokens: opts.maxTokens || 8000,
+      max_tokens: opts.maxTokens || 8192,
       system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }] as any,
       messages,
       tools: [
@@ -48,8 +48,20 @@ export async function runWithWebSearch(opts: {
       }
     }
     const text = (res.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n');
-    if (text) finalText = text;
 
+    // Resposta cortada por limite de tamanho antes de fechar o JSON: pede pra continuar
+    // exatamente de onde parou, em vez de descartar tudo e falhar a cidade.
+    if (res.stop_reason === 'max_tokens') {
+      finalText += text;
+      messages.push({ role: 'assistant', content: res.content });
+      messages.push({
+        role: 'user',
+        content: 'Sua resposta foi cortada por limite de tamanho antes de fechar o JSON. Continue exatamente de onde parou, sem repetir o que já foi escrito, até fechar </json> corretamente.',
+      });
+      continue;
+    }
+
+    if (text) finalText = text;
     if (res.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: res.content });
       continue;
