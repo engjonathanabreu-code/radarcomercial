@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveIbgeCode } from '@/lib/ibge';
+import { startRun, kickWorkers } from '@/lib/runs';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -11,6 +12,11 @@ export async function POST(req: Request) {
   if (!ibge) return NextResponse.json({ error: `Não encontrei "${name}" na lista do IBGE para ${uf}. Confira a grafia.` }, { status: 400 });
   const { data, error } = await db().from('radar_cities').insert({ name, uf, ibge_code: ibge }).select('*').single();
   if (error) return NextResponse.json({ error: error.code === '23505' ? 'Esta cidade já está cadastrada.' : error.message }, { status: 400 });
+
+  // Pesquisa essa cidade imediatamente, sem esperar o cron do dia seguinte.
+  const runId = await startRun('manual', [data.id]).catch(() => null);
+  if (runId) await kickWorkers(runId, 1);
+
   return NextResponse.json(data);
 }
 
