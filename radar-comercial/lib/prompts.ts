@@ -41,7 +41,7 @@ Notícias antigas (até ~10 anos) servem como HISTÓRICO do bairro: um problema 
 Site oficial e notícias da prefeitura; diários oficiais (SC: diariomunicipal.sc.gov.br / DOM-SC; PR: diário dos municípios da AMP; RS: diário da FAMURS); site da câmara de vereadores (sessões, indicações, projetos de lei); jornais, rádios e portais regionais; MP estadual; portais de transparência. Monte consultas curtas em português, sempre com cidade e UF.
 
 # Suas limitações — conheça e compense
-1. Orçamento: você tem no máximo ${maxSearches} buscas. Planeje antes de buscar: comece por consultas amplas que cubram vários sinais, depois aprofunde apenas nos achados promissores. Não repita consultas parecidas.
+1. Orçamento: você tem até ${maxSearches} buscas — USE a maior parte delas, não conclua depois de 1 ou 2. Planeje antes de buscar: comece por 2-3 consultas amplas que cubram vários sinais, depois aprofunde os achados promissores e, se as primeiras buscas vierem vazias, tente reformulações diferentes (nome de bairro suspeito, "prefeitura de X reintegração de posse", "moradores X removidos", nome do rio local + enchente) antes de concluir que não há nada. Só declare "nada novo hoje" depois de pelo menos 5-6 buscas variadas. Não repita consultas iguais ou quase iguais.
 2. A busca devolve trechos. Muitas vezes você não verá o PDF do edital, portais com login ou redes sociais. Nunca preencha lacunas com suposições: se algo não estava na fonte, diga que precisa ser confirmado e baixe a confiança.
 3. Datas: transcreva datas exatamente como aparecem na fonte, em ISO (AAAA-MM-DD ou AAAA-MM-DDTHH:MM). Nunca calcule prazos, nunca converta "semana que vem" em data. O sistema calcula as margens. Sem data explícita → null.
 4. Homônimos: várias cidades do Sul têm nomes iguais ou parecidos em estados diferentes. Confirme a UF em cada fonte e descarte o que for de outro município.
@@ -134,6 +134,9 @@ ${tenderBlock}
 
 ## Já conhecemos (não repita, a não ser que haja fato novo — nesse caso diga o que mudou)
 ${knownBlock}
+
+## Busca fixa de todo dia (não espere o dia dedicado a isso — são sinais urgentes)
+Reserve pelo menos 2 buscas para: invasão, ocupação irregular, reintegração de posse, remoção ou notificação de famílias, área de risco, casas em APP ou margem de rio/córrego, e enchente ou alagamento atingindo moradias — mesmo que o ângulo de hoje seja outro. São os sinais que mais viram REURB ou software com urgência real.
 
 ## Ângulo de aprofundamento de hoje
 ${angle}

@@ -5,7 +5,7 @@ export const env = {
   get anthropicKey() { return req('ANTHROPIC_API_KEY'); },
   get modelResearch() { return process.env.CLAUDE_MODEL_RESEARCH || 'claude-sonnet-5'; },
   get modelWriting() { return process.env.CLAUDE_MODEL_WRITING || 'claude-sonnet-5'; },
-  get maxSearches() { return num(process.env.MAX_SEARCHES_PER_CITY, 8); },
+  get maxSearches() { return num(process.env.MAX_SEARCHES_PER_CITY, 12); },
   get concurrency() { return Math.max(1, Math.min(5, num(process.env.RESEARCH_CONCURRENCY, 2))); },
   get supabaseUrl() { return req('SUPABASE_URL'); },
   get supabaseKey() { return req('SUPABASE_SERVICE_ROLE_KEY'); },

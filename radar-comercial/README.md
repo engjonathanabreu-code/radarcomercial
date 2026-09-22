@@ -60,7 +60,7 @@ Abra uma cidade → marque os achados que devem ser citados → escolha o objeti
 Travas: nenhum envio automático; intervalo mínimo por prefeitura (`EMAIL_COOLDOWN_DAYS`); teto diário (`MAX_EMAILS_PER_DAY`); cópia oculta opcional para você (`SMTP_BCC`).
 
 ## Custos e ajustes
-- Cada cidade usa até `MAX_SEARCHES_PER_CITY` buscas (padrão 8). 15 cidades ≈ 120 buscas/dia, cobradas à parte dos tokens. Acompanhe no Console da Anthropic nos primeiros dias.
+- Cada cidade usa até `MAX_SEARCHES_PER_CITY` buscas (padrão 12). 15 cidades ≈ 120 buscas/dia, cobradas à parte dos tokens. Acompanhe no Console da Anthropic nos primeiros dias.
 - Mais profundidade: `CLAUDE_MODEL_RESEARCH=claude-opus-5`. Mais economia: menos buscas por cidade.
 - `RESEARCH_CONCURRENCY` controla quantas cidades rodam em paralelo; suba só se o limite de taxa da sua conta aguentar.
 
