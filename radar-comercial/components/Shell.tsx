@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 const LINKS = [
   { href: '/', label: 'Radar' },
+  { href: '/licitacoes', label: 'Licitações' },
   { href: '/cidades', label: 'Cidades' },
   { href: '/emails', label: 'E-mails' },
   { href: '/briefing', label: 'Briefing' },
