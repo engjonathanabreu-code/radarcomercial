@@ -5,7 +5,12 @@ import { db, type City } from './db';
 import { env } from './env';
 import { researchCity } from './research';
 import { sendMail, smtpConfigured } from './mailer';
-import { formatBR } from './dates';
+import { formatBR, todayBR } from './dates';
+import { discoverCities } from './discovery';
+import { getBriefing } from './settings';
+import { complete } from './claude';
+import { runSummarySystemPrompt, runSummaryUserPrompt } from './prompts';
+import { extractJson } from './text';
 
 export async function startRun(trigger: 'cron' | 'manual', cityIds?: string[]): Promise<string | null> {
   // Evita rodadas duplicadas: se há uma em andamento com menos de 3h, reaproveita.
@@ -14,6 +19,12 @@ export async function startRun(trigger: 'cron' | 'manual', cityIds?: string[]): 
     .gte('started_at', new Date(Date.now() - 3 * 3600_000).toISOString())
     .order('started_at', { ascending: false }).limit(1).maybeSingle();
   if (running && !cityIds) return running.id;
+
+  // Rodada automática do cron: antes de selecionar as cidades, a IA pode incluir
+  // novos municípios de SC/PR/RS que ainda não estão monitorados (com teto de custo).
+  if (trigger === 'cron' && !cityIds) {
+    await discoverCities().catch((e) => console.error('Falha na descoberta automática de cidades', e));
+  }
 
   let q = db().from('radar_cities').select('id').eq('active', true);
   if (cityIds?.length) q = q.in('id', cityIds);
@@ -82,6 +93,14 @@ async function finalizeIfDone(runId: string): Promise<void> {
     .eq('id', runId).eq('status', 'running').select('id');
   if (!closed?.length) return;
 
+  // Resumo executivo exibido no painel (não depende de e-mail configurado).
+  try {
+    const summary = await generateRunSummary(runId);
+    if (summary) await db().from('radar_runs').update({ summary }).eq('id', runId);
+  } catch (e) {
+    console.error('Falha ao gerar o resumo da rodada', e);
+  }
+
   if (env.reportEmail && smtpConfigured()) {
     try {
       await sendDigest(runId);
@@ -90,6 +109,28 @@ async function finalizeIfDone(runId: string): Promise<void> {
       console.error('Falha no relatório por e-mail', e);
     }
   }
+}
+
+async function generateRunSummary(runId: string): Promise<{ resumo: string; destaques: string[] } | null> {
+  const { data: run } = await db().from('radar_runs').select('started_at').eq('id', runId).single();
+  const { data: opps } = await db()
+    .from('radar_opportunities')
+    .select('title,kind,score,eligible,business_days_left,neighborhood,cities:radar_cities(name,uf)')
+    .gte('first_seen', run!.started_at)
+    .neq('status', 'descartado')
+    .order('score', { ascending: false })
+    .limit(60);
+
+  const list = (opps || []) as any[];
+  if (!list.length) return { resumo: 'Nenhum achado novo relevante nesta rodada.', destaques: [] };
+
+  const raw = await complete({
+    system: runSummarySystemPrompt(await getBriefing()),
+    user: runSummaryUserPrompt({ date: todayBR(), opps: list }),
+    model: env.modelWriting,
+    maxTokens: 700,
+  });
+  return extractJson(raw);
 }
 
 async function sendDigest(runId: string): Promise<void> {

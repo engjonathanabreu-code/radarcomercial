@@ -4,12 +4,13 @@ Agente de prospecção que pesquisa, todos os dias, as prefeituras que você esc
 
 ## O que ele faz a cada manhã (6h)
 
-1. **Licitações oficiais** — consulta a API pública do PNCP para cada município e pega as contratações com propostas em aberto. Prazo e link vêm do PNCP, não da IA.
-2. **Pesquisa humana na web** — o Claude, com busca na web, lê notícias, diários oficiais, câmara de vereadores e MP procurando sinais diretos (REURB, Lar Legal, lei municipal) e **indiretos**: loteamento clandestino, "moradores sem escritura", rua que não pode receber asfalto por não ser oficial, ocupação em APP, pedido de vereador etc. Registra o **nome do bairro** sempre que a fonte cita.
-3. **Ângulo do dia** — cada cidade recebe um foco diferente por dia (câmara, MP, áreas de risco, plano diretor/ETSA, cadastro/software, habitação, secretariado), cobrindo a semana inteira sem repetir.
-4. **Memória** — o agente recebe o que já foi encontrado e só traz novidades. Status que você marca (descartado, em andamento) é preservado.
-5. **Margem de licitação** — calculada pelo sistema em **dias úteis inteiros** (feriados nacionais inclusos). Padrão: 3. Licitações com menos margem ficam registradas como "fora da margem" — mostram que a prefeitura compra esse serviço.
-6. **Relatório** — painel com temperatura por cidade, estacas de prazo das licitações e feed de achados; opcionalmente um resumo no seu e-mail.
+1. **Descoberta de cidades** — antes de pesquisar, a IA escolhe sozinha até `MAX_NEW_CITIES_PER_DAY` municípios novos de SC/PR/RS (ainda não monitorados, priorizando cidades pequenas/médias do interior) e os adiciona como ativos, até o teto `MAX_ACTIVE_CITIES`. Você não precisa cadastrar a lista inteira à mão; pode remover ou desativar qualquer uma depois em Cidades.
+2. **Licitações oficiais** — consulta a API pública do PNCP para cada município e pega as contratações com propostas em aberto. Prazo e link vêm do PNCP, não da IA.
+3. **Pesquisa humana na web** — o Claude, com busca na web, lê notícias, diários oficiais, câmara de vereadores e MP procurando sinais diretos (REURB, Lar Legal, lei municipal) e **indiretos**: loteamento clandestino, "moradores sem escritura", rua que não pode receber asfalto por não ser oficial, ocupação em APP, pedido de vereador etc. Registra o **nome do bairro** sempre que a fonte cita.
+4. **Ângulo do dia** — cada cidade recebe um foco diferente por dia (câmara, MP, áreas de risco, plano diretor/ETSA, cadastro/software, habitação, secretariado), cobrindo a semana inteira sem repetir.
+5. **Memória** — o agente recebe o que já foi encontrado e só traz novidades. Status que você marca (descartado, em andamento) é preservado.
+6. **Margem de licitação** — calculada pelo sistema em **dias úteis inteiros** (feriados nacionais inclusos). Padrão: 3. Licitações com menos margem ficam registradas como "fora da margem" — mostram que a prefeitura compra esse serviço.
+7. **Relatório** — assim que a rodada termina, um resumo executivo (gerado pela IA a partir dos achados do dia) aparece no topo do painel do Radar; opcionalmente também por e-mail (`REPORT_EMAIL`).
 
 ## Como o agente foi calibrado para as limitações do Claude
 

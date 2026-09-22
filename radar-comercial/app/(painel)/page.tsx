@@ -48,6 +48,18 @@ export default async function RadarPage() {
 
       <section><RunPanel initialRun={run || null} initialItems={(items || []) as any} /></section>
 
+      {run?.status === 'done' && (run as any).summary?.resumo && (
+        <section className="panel">
+          <h2 style={{ marginTop: 0 }}>Resumo de hoje</h2>
+          <p className="summary-text">{(run as any).summary.resumo}</p>
+          {(run as any).summary.destaques?.length > 0 && (
+            <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+              {(run as any).summary.destaques.map((d: string, i: number) => <li key={i}>{d}</li>)}
+            </ul>
+          )}
+        </section>
+      )}
+
       <section>
         <h2>Licitações para participar</h2>
         {eligible.length === 0 ? (

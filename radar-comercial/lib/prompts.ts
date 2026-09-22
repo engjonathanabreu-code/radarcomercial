@@ -151,6 +151,58 @@ export const EMAIL_INTENTS: Record<string, string> = {
   followup: 'Retomar um contato anterior sem resposta.',
 };
 
+// --- Descoberta automática de cidades ---------------------------------------
+
+export function discoverySystemPrompt(b: Briefing): string {
+  return `Você ajuda a ${b.company_name} a expandir a lista de municípios do Sul do Brasil (SC, PR, RS) monitorados pelo radar comercial de REURB e do Software Gestor REURB.
+
+Escolha municípios pequenos e médios (tipicamente até ~60 mil habitantes, priorize os menores), de preferência fora de capitais e das regiões metropolitanas centrais — esse perfil costuma ter mais núcleos urbanos informais e menos estrutura própria para regularização fundiária, ou seja, é o cliente ideal.
+
+Escolha SOMENTE entre os nomes da lista fornecida (não invente municípios). Não repita capitais (Florianópolis, Curitiba, Porto Alegre) nem cidades-polo das regiões metropolitanas centrais (ex.: São José, Joinville, São Bento do Sul na Grande Florianópolis/Norte de SC não são o alvo; interior conta mais).
+
+Responda SOMENTE com um JSON entre <json> e </json>:
+<json>{"cidades":[{"nome":"...", "uf":"SC | PR | RS", "motivo":"uma frase sobre por que este município é um bom alvo"}]}</json>`;
+}
+
+export function discoveryUserPrompt(pool: { nome: string; uf: string }[], n: number): string {
+  const byUf: Record<string, string[]> = {};
+  for (const p of pool) (byUf[p.uf] ||= []).push(p.nome);
+  const block = Object.entries(byUf)
+    .map(([uf, names]) => `## ${uf} (${names.length} municípios ainda não monitorados)\n${names.join(', ')}`)
+    .join('\n\n');
+  return `Escolha até ${n} municípios ainda não monitorados para adicionar ao radar hoje.
+
+${block}
+
+Responda com o JSON.`;
+}
+
+// --- Resumo executivo da rodada diária ---------------------------------------
+
+export function runSummarySystemPrompt(b: Briefing): string {
+  return `Você resume para ${b.sender_name}, ${b.sender_role} da ${b.company_name}, o resultado de uma rodada diária do radar comercial de REURB e Software Gestor REURB nas prefeituras monitoradas do Sul do Brasil.
+
+Seja direto, específico e use apenas os dados fornecidos — nunca invente cidade, número ou achado que não esteja na lista. Se não houver achados relevantes, diga isso claramente.
+
+Responda SOMENTE com um JSON entre <json> e </json>:
+<json>{"resumo": "3 a 5 frases sobre o dia, priorizando o que exige ação agora", "destaques": ["Cidade/UF: motivo curto", "..."]}</json>`;
+}
+
+export function runSummaryUserPrompt(args: { date: string; opps: any[] }): string {
+  const lines = args.opps
+    .map((o) => {
+      const city = o.cities ? `${o.cities.name}/${o.cities.uf}` : 'cidade desconhecida';
+      const tender = o.kind === 'licitacao' && o.eligible ? ` · licitação dentro da margem, ${o.business_days_left} dias úteis` : '';
+      const bairro = o.neighborhood ? ` · bairro ${o.neighborhood}` : '';
+      return `- ${city} · [${o.kind}] ${o.title} · score ${o.score}${tender}${bairro}`;
+    })
+    .join('\n');
+  return `Rodada de ${args.date}. Achados novos e relevantes (não descartados):
+${lines || '(nenhum achado novo hoje)'}
+
+Responda com o JSON.`;
+}
+
 export function emailSystemPrompt(b: Briefing): string {
   return `Você redige e-mails comerciais em nome de ${b.sender_name}, ${b.sender_role} da ${b.company_name}. O e-mail será lido por servidores públicos de prefeituras (prefeito, secretários de planejamento, habitação, obras, assistência social, procuradoria). Ele sai do e-mail corporativo do Jonathan, assinado por ele: escreva exatamente como ele escreveria, em primeira pessoa.
 

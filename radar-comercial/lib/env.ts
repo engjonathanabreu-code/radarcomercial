@@ -16,6 +16,8 @@ export const env = {
     return (process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')).replace(/\/$/, '');
   },
   get minMargin() { return num(process.env.MIN_MARGIN_BUSINESS_DAYS, 3); },
+  get maxActiveCities() { return num(process.env.MAX_ACTIVE_CITIES, 30); },
+  get maxNewCitiesPerDay() { return num(process.env.MAX_NEW_CITIES_PER_DAY, 2); },
   get emailCooldownDays() { return num(process.env.EMAIL_COOLDOWN_DAYS, 10); },
   get maxEmailsPerDay() { return num(process.env.MAX_EMAILS_PER_DAY, 20); },
   get reportEmail() { return process.env.REPORT_EMAIL || ''; },
