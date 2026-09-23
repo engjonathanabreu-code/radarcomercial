@@ -17,10 +17,55 @@ export function extractJson<T = any>(text: string): T | null {
   if (fence) candidates.push(fence[1]);
   const first = text.indexOf('{'), last = text.lastIndexOf('}');
   if (first >= 0 && last > first) candidates.push(text.slice(first, last + 1));
+
+  // Resposta cortada por limite de tokens (sem </json> nem } final): tenta a partir do
+  // primeiro '{' até o fim do texto, mesmo incompleta — a etapa de reparo abaixo fecha o resto.
+  const openTag = text.match(/<json>([\s\S]*)$/i);
+  if (openTag) candidates.push(openTag[1]);
+  else if (first >= 0) candidates.push(text.slice(first));
+
   for (const c of candidates) {
     try { return JSON.parse(c.trim()) as T; } catch { /* tenta o próximo */ }
   }
+  // Nenhum candidato é JSON válido de cara: provavelmente foi cortado no meio de uma
+  // string ou de um item de lista. Fecha o que ficou pendente e aproveita o que já
+  // foi gerado, em vez de descartar a cidade inteira por causa do último item.
+  for (const c of candidates) {
+    const repaired = repairTruncatedJson(c);
+    if (repaired) {
+      try { return JSON.parse(repaired) as T; } catch { /* tenta o próximo candidato */ }
+    }
+  }
   return null;
+}
+
+function repairTruncatedJson(raw: string): string | null {
+  const start = raw.indexOf('{');
+  if (start < 0) return null;
+  const s = raw.slice(start).trimEnd();
+
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (c === '\\') escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') { inString = true; continue; }
+    if (c === '{' || c === '[') stack.push(c);
+    else if (c === '}' || c === ']') stack.pop();
+  }
+  if (!stack.length && !inString) return null; // já estava fechado — não era truncamento
+
+  let repaired = s;
+  if (inString) repaired += '"';
+  repaired = repaired.replace(/,\s*$/, ''); // remove vírgula pendurada antes de fechar
+  for (let i = stack.length - 1; i >= 0; i--) repaired += stack[i] === '{' ? '}' : ']';
+  return repaired;
 }
 
 export function clamp(n: unknown, min: number, max: number, fallback = 0): number {

@@ -57,24 +57,15 @@ export async function runWithWebSearch(opts: {
       .join('\n')
       .replace(/<\/?cite[^>]*>/g, '');
 
-    // Resposta cortada por limite de tamanho antes de fechar o JSON. Pedir para "continuar
-    // de onde parou" é frágil (o modelo tende a recomeçar do zero, e a colagem dos dois
-    // pedaços fica quebrada) — em vez disso, descarta o trecho truncado e pede uma resposta
-    // nova e completa, mais direta na prosa de cada campo, sem reduzir as oportunidades.
-    if (res.stop_reason === 'max_tokens') {
-      messages.push({ role: 'assistant', content: res.content });
-      messages.push({
-        role: 'user',
-        content: 'Sua resposta foi cortada por limite de tamanho antes de fechar o JSON. Não continue de onde parou: responda de novo, do zero, com um <json>...</json> completo e bem formado, cabendo no limite. Pode ser mais direto e objetivo no texto de cada campo (resumo, por_que_importa, justificativa_temperatura etc.), mas mantenha todas as oportunidades e contatos encontrados — não reduza a quantidade.',
-      });
-      continue;
-    }
-
     if (text) finalText = text;
     if (res.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: res.content });
       continue;
     }
+    // stop_reason === 'max_tokens' (resposta cortada antes de fechar o JSON) também cai aqui:
+    // pedir para refazer do zero custaria caro (reenvia todo o histórico de busca) e é frágil.
+    // extractJson (lib/text.ts) sabe fechar strings/colchetes pendentes e aproveitar o que já
+    // foi gerado, em vez de descartar a cidade inteira por causa do último item cortado.
     break;
   }
   return { text: finalText, searches, sources };
