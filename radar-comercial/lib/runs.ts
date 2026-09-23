@@ -64,6 +64,17 @@ export async function processNext(runId: string): Promise<boolean> {
     return false;
   }
 
+  // Teto diário de buscas: corta o restante da rodada em vez de deixar o custo crescer sem limite.
+  const usedSearches = await searchesUsedInRun(runId);
+  if (usedSearches >= env.maxSearchesPerDay) {
+    await db().from('radar_run_items').update({
+      status: 'error',
+      error: `Orçamento diário de buscas (${env.maxSearchesPerDay}) atingido nesta rodada. Esta cidade fica para a próxima pesquisa.`,
+      finished_at: new Date().toISOString(),
+    }).eq('id', item.id);
+    return true;
+  }
+
   const { data: city } = await db().from('radar_cities').select('*').eq('id', item.city_id).single();
   try {
     const { report, searches } = await researchCity(city as City, runId);
@@ -80,6 +91,11 @@ export async function processNext(runId: string): Promise<boolean> {
     }).eq('id', item.id);
   }
   return true;
+}
+
+async function searchesUsedInRun(runId: string): Promise<number> {
+  const { data } = await db().from('radar_run_items').select('searches').eq('run_id', runId).eq('status', 'done');
+  return (data || []).reduce((sum, r: any) => sum + (r.searches || 0), 0);
 }
 
 async function finalizeIfDone(runId: string): Promise<void> {

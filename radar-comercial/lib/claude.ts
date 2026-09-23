@@ -25,10 +25,12 @@ export async function runWithWebSearch(opts: {
   const sources: SearchSource[] = [];
   let finalText = '';
 
-  for (let turn = 0; turn < 12; turn++) {
+  // Cada turno reenvia todo o histórico (buscas incluídas), então poucos turnos bastam —
+  // mais que isso só multiplica o custo de entrada sem trazer achados novos.
+  for (let turn = 0; turn < 4; turn++) {
     const res: any = await anthropic().messages.create({
       model: opts.model || env.modelResearch,
-      max_tokens: opts.maxTokens || 8192,
+      max_tokens: opts.maxTokens || 4096,
       system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }] as any,
       messages,
       tools: [
