@@ -5,7 +5,12 @@ export const env = {
   get anthropicKey() { return req('ANTHROPIC_API_KEY'); },
   get modelResearch() { return process.env.CLAUDE_MODEL_RESEARCH || 'claude-sonnet-5'; },
   get modelWriting() { return process.env.CLAUDE_MODEL_WRITING || 'claude-sonnet-5'; },
-  get maxSearches() { return num(process.env.MAX_SEARCHES_PER_CITY, 6); },
+  get maxSearches() { return num(process.env.MAX_SEARCHES_PER_CITY, 4); },
+  /** Teto de gasto com a IA por dia (US$), somando tokens e buscas de todas as chamadas. */
+  get dailyBudgetUsd() { return Math.max(0, num(process.env.AI_DAILY_BUDGET_USD, 0.2)); },
+  /** Opcional: preço por milhão de tokens, se o modelo configurado não estiver na tabela de lib/budget.ts. */
+  get priceInputOverride() { return process.env.AI_PRICE_INPUT_PER_MTOK ? num(process.env.AI_PRICE_INPUT_PER_MTOK, NaN) : null; },
+  get priceOutputOverride() { return process.env.AI_PRICE_OUTPUT_PER_MTOK ? num(process.env.AI_PRICE_OUTPUT_PER_MTOK, NaN) : null; },
   get maxSearchesPerDay() { return num(process.env.MAX_SEARCHES_PER_DAY, 80); },
   get concurrency() { return Math.max(1, Math.min(5, num(process.env.RESEARCH_CONCURRENCY, 2))); },
   get supabaseUrl() { return req('SUPABASE_URL'); },

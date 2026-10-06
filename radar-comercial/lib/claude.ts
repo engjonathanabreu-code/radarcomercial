@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from './env';
+import { BudgetExceededError, TOKENS_PER_SEARCH, WEB_SEARCH_USD, estimate, priceFor, remainingToday, reserve, settle, usageFrom } from './budget';
 
 let client: Anthropic | null = null;
 function anthropic(): Anthropic {
@@ -27,21 +28,50 @@ export async function runWithWebSearch(opts: {
 
   // Cada turno reenvia todo o histórico (buscas incluídas), então poucos turnos bastam —
   // mais que isso só multiplica o custo de entrada sem trazer achados novos.
+  const model = opts.model || env.modelResearch;
+  const maxTokens = opts.maxTokens || 4096;
   for (let turn = 0; turn < 4; turn++) {
-    const res: any = await anthropic().messages.create({
-      model: opts.model || env.modelResearch,
-      max_tokens: opts.maxTokens || 4096,
-      system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }] as any,
-      messages,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: opts.maxSearches,
-          user_location: { type: 'approximate', country: 'BR', timezone: 'America/Sao_Paulo' },
-        } as any,
-      ],
-    });
+    // Orçamento diário: cabe quantas buscas ainda? Sem orçamento para ao menos uma, a cidade fica para amanhã;
+    // numa continuação, devolve o que já foi apurado em vez de gastar além do teto.
+    const promptChars = opts.system.length + JSON.stringify(messages).length;
+    const left = Math.max(0, opts.maxSearches - searches);
+    const remaining = await remainingToday();
+    const base = estimate(model, promptChars, maxTokens, 0);
+    const perSearch = WEB_SEARCH_USD + (TOKENS_PER_SEARCH * priceFor(model).input) / 1e6;
+    // Começar uma cidade com menos de 2 buscas daria uma pesquisa rasa: melhor deixá-la para amanhã.
+    if (turn === 0 && Math.floor((remaining - base) / perSearch) < Math.min(2, opts.maxSearches)) {
+      throw new BudgetExceededError(env.dailyBudgetUsd);
+    }
+    // A API exige ao menos 1 uso da ferramenta; a reserva cobre esse mínimo.
+    const maxUses = Math.max(1, Math.min(Math.max(left, 1), Math.floor((remaining - base) / perSearch)));
+    let reservation: number;
+    try {
+      reservation = await reserve('pesquisa', model, estimate(model, promptChars, maxTokens, maxUses));
+    } catch (e) {
+      if (turn === 0) throw e; // sem orçamento nem para começar: a cidade fica para amanhã
+      break;                   // continuação: devolve o que já foi apurado em vez de passar do teto
+    }
+    let res: any;
+    try {
+      res = await anthropic().messages.create({
+        model,
+        max_tokens: maxTokens,
+        system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }] as any,
+        messages,
+        tools: [
+          {
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: maxUses,
+            user_location: { type: 'approximate', country: 'BR', timezone: 'America/Sao_Paulo' },
+          } as any,
+        ],
+      });
+    } catch (e) {
+      await settle(reservation, model, null, 'erro');
+      throw e;
+    }
+    await settle(reservation, model, usageFrom(res), 'concluido');
 
     searches += res.usage?.server_tool_use?.web_search_requests || 0;
     for (const block of res.content || []) {
@@ -71,12 +101,22 @@ export async function runWithWebSearch(opts: {
   return { text: finalText, searches, sources };
 }
 
-export async function complete(opts: { system: string; user: string; model?: string; maxTokens?: number }): Promise<string> {
-  const res: any = await anthropic().messages.create({
-    model: opts.model || env.modelWriting,
-    max_tokens: opts.maxTokens || 2000,
-    system: opts.system,
-    messages: [{ role: 'user', content: opts.user }],
-  });
+export async function complete(opts: { system: string; user: string; model?: string; maxTokens?: number; kind?: string }): Promise<string> {
+  const model = opts.model || env.modelWriting;
+  const maxTokens = opts.maxTokens || 2000;
+  const reservation = await reserve(opts.kind || 'redacao', model, estimate(model, opts.system.length + opts.user.length, maxTokens));
+  let res: any;
+  try {
+    res = await anthropic().messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: opts.system,
+      messages: [{ role: 'user', content: opts.user }],
+    });
+  } catch (e) {
+    await settle(reservation, model, null, 'erro');
+    throw e;
+  }
+  await settle(reservation, model, usageFrom(res), 'concluido');
   return (res.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n');
 }

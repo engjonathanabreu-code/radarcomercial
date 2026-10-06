@@ -11,6 +11,7 @@ import { getBriefing } from './settings';
 import { complete } from './claude';
 import { runSummarySystemPrompt, runSummaryUserPrompt } from './prompts';
 import { extractJson } from './text';
+import { isBudgetError } from './budget';
 
 export async function startRun(trigger: 'cron' | 'manual', cityIds?: string[]): Promise<string | null> {
   // Evita rodadas duplicadas: se há uma em andamento com menos de 3h, reaproveita.
@@ -82,6 +83,13 @@ export async function processNext(runId: string): Promise<boolean> {
       status: 'done', report, searches, finished_at: new Date().toISOString(), error: null,
     }).eq('id', item.id);
   } catch (e: any) {
+    if (isBudgetError(e)) {
+      // Teto diário de gasto com a IA: não é falha da cidade e não adianta repetir hoje.
+      await db().from('radar_run_items').update({
+        status: 'error', error: e.message, finished_at: new Date().toISOString(),
+      }).eq('id', item.id);
+      return true;
+    }
     console.error(`Erro pesquisando ${city?.name}:`, e);
     const retry = item.attempts < 2;
     await db().from('radar_run_items').update({
@@ -144,6 +152,7 @@ async function generateRunSummary(runId: string): Promise<{ resumo: string; dest
     system: runSummarySystemPrompt(await getBriefing()),
     user: runSummaryUserPrompt({ date: todayBR(), opps: list }),
     model: env.modelWriting,
+    kind: 'resumo',
     maxTokens: 700,
   });
   return extractJson(raw);

@@ -129,3 +129,44 @@ begin
   returning *;
 end;
 $$;
+
+-- Teto diário de gasto com IA (aplicado em 06/10/2026 como migração radar_orcamento_diario_ia).
+create table if not exists public.radar_ai_usage(
+  id bigserial primary key,
+  day date not null default (now() at time zone 'America/Sao_Paulo')::date,
+  created_at timestamptz not null default now(),
+  kind text, model text,
+  input_tokens integer not null default 0, output_tokens integer not null default 0,
+  cache_write_tokens integer not null default 0, cache_read_tokens integer not null default 0,
+  web_searches integer not null default 0,
+  reserved_usd numeric(12,6) not null default 0, cost_usd numeric(12,6) not null default 0,
+  status text not null default 'reservado'
+);
+create index if not exists radar_ai_usage_day on public.radar_ai_usage(day);
+alter table public.radar_ai_usage enable row level security;
+
+create or replace function public.radar_ia_gasto_hoje() returns numeric
+language sql stable security invoker set search_path = '' as $$
+  select coalesce(sum(case when status = 'reservado' then case when created_at > now() - interval '15 minutes' then reserved_usd else 0 end else cost_usd end), 0)
+    from public.radar_ai_usage where day = (now() at time zone 'America/Sao_Paulo')::date
+$$;
+
+create or replace function public.radar_ia_reservar(p_limite numeric, p_estimativa numeric, p_kind text, p_model text)
+returns bigint language plpgsql security invoker set search_path = '' as $$
+declare v bigint;
+begin
+  perform pg_advisory_xact_lock(hashtext('radar_ai_budget'));
+  if public.radar_ia_gasto_hoje() + greatest(p_estimativa, 0) > p_limite then return null; end if;
+  insert into public.radar_ai_usage(kind, model, reserved_usd) values (left(p_kind, 40), left(p_model, 80), greatest(p_estimativa, 0)) returning id into v;
+  return v;
+end $$;
+
+create or replace function public.radar_ia_registrar(p_id bigint, p_input integer, p_output integer, p_cache_write integer, p_cache_read integer, p_searches integer, p_cost numeric, p_status text)
+returns void language sql security invoker set search_path = '' as $$
+  update public.radar_ai_usage
+     set input_tokens = coalesce(p_input, 0), output_tokens = coalesce(p_output, 0),
+         cache_write_tokens = coalesce(p_cache_write, 0), cache_read_tokens = coalesce(p_cache_read, 0),
+         web_searches = coalesce(p_searches, 0), cost_usd = greatest(coalesce(p_cost, 0), 0), status = left(p_status, 20)
+   where id = p_id
+$$;
+-- radar_claim_next_item passou a ordenar a fila pela cidade pesquisada há mais tempo (ver migração).

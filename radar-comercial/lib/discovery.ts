@@ -17,6 +17,12 @@ export async function discoverCities(): Promise<{ added: string[] }> {
   const perDay = Math.min(env.maxNewCitiesPerDay, slots);
   if (perDay <= 0) return { added: [] };
 
+  // Com o orçamento diário curto, só vale descobrir cidades novas quando todas as ativas já foram pesquisadas.
+  const { data: actives } = await db().from('radar_cities').select('id').eq('active', true);
+  const { data: researched } = await db().from('radar_run_items').select('city_id').eq('status', 'done');
+  const done = new Set((researched || []).map((r: any) => r.city_id));
+  if ((actives || []).some((c: any) => !done.has(c.id))) return { added: [] };
+
   const { data: known } = await db().from('radar_cities').select('name,uf');
   const knownSet = new Set((known || []).map((c: any) => `${normalize(c.name)}|${c.uf}`));
 
@@ -34,6 +40,7 @@ export async function discoverCities(): Promise<{ added: string[] }> {
     system: discoverySystemPrompt(briefing),
     user: discoveryUserPrompt(pool, perDay),
     model: env.modelWriting,
+    kind: 'descoberta',
     maxTokens: 1200,
   });
   const parsed = extractJson<{ cidades: { nome: string; uf: string; motivo: string }[] }>(raw);

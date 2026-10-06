@@ -43,7 +43,7 @@ Gancho sugerido: ${lastItem?.report?.gancho_email || 'n/d'}
 
 Contatos anteriores já enviados: ${(history || []).map((h: any) => `${formatBR(h.sent_at)} "${h.subject}"`).join('; ') || 'nenhum'}`;
 
-  const raw = await complete({ system: emailSystemPrompt(b), user, model: env.modelWriting });
+  const raw = await complete({ system: emailSystemPrompt(b), user, model: env.modelWriting, kind: 'email' });
   const parsed = extractJson<{ assunto: string; corpo: string; observacoes_para_jonathan?: string }>(raw);
   if (!parsed?.corpo) throw new Error('A IA não devolveu o e-mail no formato esperado.');
 

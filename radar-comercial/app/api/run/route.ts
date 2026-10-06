@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { kickWorkers, startRun } from '@/lib/runs';
+import { env } from '@/lib/env';
+import { spentToday } from '@/lib/budget';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +17,9 @@ export async function POST(req: Request) {
 
 // Status da rodada mais recente (o painel consulta enquanto roda)
 export async function GET() {
+  const budget = { limit: env.dailyBudgetUsd, spent: await spentToday().catch(() => null) };
   const { data: run } = await db().from('radar_runs').select('*').order('started_at', { ascending: false }).limit(1).maybeSingle();
-  if (!run) return NextResponse.json({ run: null, items: [] });
+  if (!run) return NextResponse.json({ run: null, items: [], budget });
   const { data: items } = await db().from('radar_run_items').select('status,city_id,error,cities:radar_cities(name)').eq('run_id', run.id);
-  return NextResponse.json({ run, items: items || [] });
+  return NextResponse.json({ run, items: items || [], budget });
 }

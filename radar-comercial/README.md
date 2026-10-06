@@ -60,7 +60,7 @@ Abra uma cidade → marque os achados que devem ser citados → escolha o objeti
 Travas: nenhum envio automático; intervalo mínimo por prefeitura (`EMAIL_COOLDOWN_DAYS`); teto diário (`MAX_EMAILS_PER_DAY`); cópia oculta opcional para você (`SMTP_BCC`).
 
 ## Custos e ajustes
-- Cada cidade usa até `MAX_SEARCHES_PER_CITY` buscas (padrão 6), cobradas à parte dos tokens. Além disso, `MAX_SEARCHES_PER_DAY` (padrão 80) é um teto somado de toda a rodada do dia: ao atingir, as cidades restantes ficam para a pesquisa seguinte em vez de continuar gastando. Acompanhe no Console da Anthropic nos primeiros dias.
+- **Teto diário de gasto com a IA: US$ 0,20** (`AI_DAILY_BUDGET_USD`). Toda chamada à Anthropic (pesquisa, descoberta de cidades, resumo e e-mails) reserva antes o custo estimado e registra depois o custo real em `radar_ai_usage` (tokens de entrada, saída, cache e buscas a US$ 0,01). Se a próxima chamada não cabe no que resta do dia (fuso de Brasília), ela não é feita: as cidades restantes ficam para a próxima pesquisa, que começa pelas pesquisadas há mais tempo. O painel mostra o gasto do dia. Cada cidade usa até `MAX_SEARCHES_PER_CITY` buscas (padrão 4, reduzido automaticamente ao que o orçamento comporta) e `MAX_SEARCHES_PER_DAY` (padrão 80) continua valendo como teto de buscas da rodada.
 - Mais profundidade: `CLAUDE_MODEL_RESEARCH=claude-opus-5` (mais caro). Mais economia: menos buscas por cidade ou menos cidades ativas (`MAX_ACTIVE_CITIES`).
 - `RESEARCH_CONCURRENCY` controla quantas cidades rodam em paralelo; suba só se o limite de taxa da sua conta aguentar.
 
